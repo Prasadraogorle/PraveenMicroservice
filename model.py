@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from fastapi.responses import JSONResponse
 
 load_dotenv()
 
