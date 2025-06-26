@@ -26,6 +26,13 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 app = FastAPI()
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
+@app.get("/")
+async def health_check():
+    return JSONResponse(
+        content={"status": "healthy", "version": "1.0.0"},
+        status_code=200
+    )
+    
 class LocalMistralChatLLM(LLM, BaseModel):
     model_name: str = "llama3-8b-8192"  
     groq_api_key: str = os.getenv("GROQ_API_KEY")
