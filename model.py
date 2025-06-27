@@ -147,6 +147,12 @@ class ClearHistoryRequest(BaseModel):
     pdfId: str
     sessionId: Optional[str] = "default"
 
+
+@app.get("/")
+def root():
+    return {"message": "FastAPI backend is running!"}
+
+
 @app.post("/embed")
 async def embed_text(request: EmbedRequest):
     try:
