@@ -18,17 +18,33 @@ import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from fastapi.middleware.cors import CORSMiddleware
+
 
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or restrict to your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
+
 class LocalMistralChatLLM(LLM, BaseModel):
-    model_name: str = "llama3-8b-8192"  
+    model_name: str = "llama3-8b-8192"
     groq_api_key: str = os.getenv("GROQ_API_KEY")
+
+    @property
+    def _llm_type(self) -> str:
+        return "local_mistral_chat_llm"
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -42,29 +58,12 @@ class LocalMistralChatLLM(LLM, BaseModel):
             "temperature": 0.7,
             "max_tokens": 1024
         }
-
         response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
+        if not response.ok:
+            print("Groq API error:", response.text)
+            response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
-    model_name: str = "mixtral-8x7b-32768"  
-    groq_api_key: str = os.getenv("GROQ_API_KEY")
 
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.groq_api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": self.model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,
-            "max_tokens": 1024
-        }
-
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
 class ChromaDBChatMemory:
     def __init__(self, pdf_id: str, session_id: str, k: int = 5):
         self.pdf_id = pdf_id
@@ -225,5 +224,6 @@ def health_check():
             "active_memory_instances": len(memory_instances)
         }
 
-if __name__ == "_main_":
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+if __name__ == "__main__":
+    uvicorn.run("model:app", host="0.0.0.0", port = int(os.environ["PORT"]),workers=1)
+
